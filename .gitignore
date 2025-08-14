@@ -1,0 +1,47 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Backups
+backups/*.rdb
+backups/*.bak
+backups/*.dump
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python (for Graphiti clients)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Redis/FalkorDB data (if stored locally)
+data/
+dump.rdb
+
+# Claude AI
+.claude/
