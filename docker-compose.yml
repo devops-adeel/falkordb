@@ -1,0 +1,29 @@
+# FalkorDB Setup for OrbStack on M3 MacBook Pro
+# Optimized for multiple Graphiti instances with shared knowledge graph
+
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    platform: linux/arm64    # Critical for M3 performance
+    container_name: falkordb
+    ports:
+      - "6380:6379"          # Redis/FalkorDB protocol - mapped to 6380 to avoid conflicts
+      - "3001:3000"          # Browser interface (optional) - mapped to 3001 to avoid conflicts
+    volumes:
+      - falkordb_data:/var/lib/falkordb/data  # Named volume for persistence
+    environment:
+      # Performance tuning for multiple concurrent connections
+      - FALKORDB_ARGS=THREAD_COUNT 8 NODE_CREATION_BUFFER 8192 CACHE_SIZE 50 OMP_THREAD_COUNT 2
+      # Redis memory management
+      - REDIS_ARGS=--maxmemory 4gb --maxmemory-policy allkeys-lru --save 60 1000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  falkordb_data:
+    driver: local
