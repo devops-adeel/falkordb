@@ -20,6 +20,8 @@ This repository provides a Docker Compose setup for FalkorDB, a high-performance
 - 🔍 **Monitoring Tools**: Built-in scripts for health checks and performance monitoring
 - 🔒 **Automatic Backups**: Scheduled backups with retention management
 - ⚡ **Low Latency**: Sub-10ms query response times for GraphRAG operations
+- 🌐 **OrbStack Integration**: Access browser UI via custom domain with automatic HTTPS
+- 🔐 **Secure by Default**: HTTPS with auto-generated trusted certificates
 
 ## Prerequisites
 
@@ -64,13 +66,25 @@ docker exec falkordb redis-cli GRAPH.LIST
 # Should show: 1) "shared_knowledge_graph"
 ```
 
-**Note**: FalkorDB is configured to use:
-- Port **6380** for Redis/FalkorDB protocol (instead of default 6379)
-- Port **3001** for the browser interface (instead of default 3000)
+**Note**: FalkorDB is configured with OrbStack networking:
+- **Browser UI**: Access via `https://falkordb.local` (no port needed)
+- **Redis/FalkorDB protocol**: Port **6380** (instead of default 6379)
+- **Automatic HTTPS**: OrbStack provides SSL certificates automatically
 
-This avoids conflicts with other services that may be running on your system.
+This provides a clean, professional setup without port conflicts.
 
-### 3. Monitor Performance
+### 3. Access the Browser Interface
+
+```bash
+# Open the FalkorDB browser (opens https://falkordb.local)
+./scripts/open-browser.sh
+
+# Or navigate directly to:
+# https://falkordb.local (HTTPS with auto certificates)
+# http://falkordb.local (HTTP alternative)
+```
+
+### 4. Monitor Performance
 
 ```bash
 # Run the monitoring dashboard
@@ -111,6 +125,7 @@ The `.env` file contains connection details for Graphiti clients:
 FALKORDB_HOST=localhost
 FALKORDB_PORT=6380  # Using 6380 to avoid conflicts
 FALKORDB_DATABASE=shared_knowledge_graph
+# Browser UI accessed via https://falkordb.local (OrbStack domain)
 ```
 
 ## Connecting from Graphiti
@@ -217,7 +232,10 @@ docker compose logs falkordb
 docker ps
 
 # Check port availability
-lsof -i :6379
+lsof -i :6380  # Redis protocol port
+
+# Check if OrbStack network bridge is enabled
+orb config get network_bridge  # Should return 'true'
 ```
 
 ### High Memory Usage
@@ -304,6 +322,8 @@ docker compose up -d --force-recreate
 - **Fast Volumes**: Named volumes are faster than bind mounts
 - **Low Resource Usage**: 0.1% CPU when idle
 - **Easy Debugging**: Direct access to volumes via Finder
+- **Automatic Domains**: Access services via `.local` domains without port numbers
+- **Built-in HTTPS**: Automatic SSL certificates for secure local development
 
 ### Graphiti Integration
 
