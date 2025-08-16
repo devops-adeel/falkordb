@@ -1,0 +1,216 @@
+{
+  "configuration_scenarios": [
+    {
+      "name": "M3 MacBook Optimization",
+      "input": "How do I optimize FalkorDB for my M3 MacBook Pro with 32GB RAM?",
+      "expected_output": "For M3 MacBook Pro optimization: Set THREAD_COUNT=8 to match performance cores, use NODE_CREATION_BUFFER=8192 for balanced write loads, configure CACHE_SIZE=50 for query caching, set OMP_THREAD_COUNT=2 for parallelization, and allocate maxmemory=4gb with LRU eviction policy.",
+      "tags": ["configuration", "m3", "optimization"],
+      "metadata": {
+        "category": "performance",
+        "difficulty": "intermediate"
+      }
+    },
+    {
+      "name": "Port Configuration",
+      "input": "Why does FalkorDB use port 6380 instead of the default 6379?",
+      "expected_output": "FalkorDB is configured to use port 6380 to avoid conflicts with existing Redis installations or other services that might be using the default port 6379. This allows you to run both Redis and FalkorDB simultaneously on the same machine.",
+      "tags": ["configuration", "networking", "ports"],
+      "metadata": {
+        "category": "setup",
+        "difficulty": "basic"
+      }
+    },
+    {
+      "name": "Connection Pooling Setup",
+      "input": "How should I configure connection pooling for 5 Graphiti agents?",
+      "expected_output": "For 5 Graphiti agents, configure connection pooling with max_connections=16 to handle concurrent requests. Each agent should connect to localhost:6380 using the shared_knowledge_graph database. Use async operations to maximize throughput.",
+      "tags": ["configuration", "connection_pooling", "multi_agent"],
+      "metadata": {
+        "category": "architecture",
+        "difficulty": "advanced"
+      }
+    }
+  ],
+  "troubleshooting_scenarios": [
+    {
+      "name": "Container Health Check Failure",
+      "input": "FalkorDB container keeps failing health checks. What should I investigate?",
+      "expected_output": "Check: 1) Container logs with 'docker compose logs falkordb', 2) Memory usage isn't exceeding 4GB limit, 3) Port 6380 is available with 'lsof -i :6380', 4) Docker has enough resources allocated, 5) Volume permissions are correct. Run './scripts/monitor.sh' for detailed diagnostics.",
+      "tags": ["troubleshooting", "docker", "health_check"],
+      "metadata": {
+        "category": "operations",
+        "difficulty": "intermediate"
+      }
+    },
+    {
+      "name": "Slow Query Performance",
+      "input": "My Graphiti queries are taking over 5 seconds. How can I improve performance?",
+      "expected_output": "To improve query performance: 1) Check slow queries with 'docker exec falkordb redis-cli SLOWLOG GET 10', 2) Increase CACHE_SIZE to 100 for better caching, 3) Adjust OMP_THREAD_COUNT to 4 for more parallelization, 4) Ensure proper indexing with build_indices_and_constraints(), 5) Use center_node_uuid for targeted searches.",
+      "tags": ["troubleshooting", "performance", "queries"],
+      "metadata": {
+        "category": "optimization",
+        "difficulty": "advanced"
+      }
+    },
+    {
+      "name": "Memory Limit Exceeded",
+      "input": "Getting 'OOM command not allowed when used memory > maxmemory' error",
+      "expected_output": "This indicates memory limit is exceeded. Solutions: 1) Increase maxmemory in docker-compose.yml from 4gb to 8gb, 2) Check current usage with 'docker exec falkordb redis-cli INFO memory', 3) Clear cache if needed with FLUSHDB, 4) Ensure LRU eviction policy is enabled, 5) Consider data retention policies.",
+      "tags": ["troubleshooting", "memory", "errors"],
+      "metadata": {
+        "category": "resources",
+        "difficulty": "intermediate"
+      }
+    }
+  ],
+  "concurrent_access_scenarios": [
+    {
+      "name": "Multiple Agent Writes",
+      "input": "Can 5 agents write to FalkorDB simultaneously without conflicts?",
+      "expected_output": "Yes, FalkorDB handles concurrent writes well with proper configuration. Use NODE_CREATION_BUFFER=8192 for balanced write loads, connection pooling with max_connections=16, and async operations. The GraphBLAS backend efficiently manages concurrent graph updates.",
+      "tags": ["concurrency", "multi_agent", "writes"],
+      "metadata": {
+        "category": "concurrency",
+        "difficulty": "intermediate"
+      }
+    },
+    {
+      "name": "Read-Write Consistency",
+      "input": "How do I ensure read consistency while other agents are writing?",
+      "expected_output": "FalkorDB provides read-write consistency through: 1) ACID transactions for graph operations, 2) Connection pooling to manage concurrent access, 3) Query caching with CACHE_SIZE=50, 4) Proper use of async/await patterns. Readers will see committed data immediately.",
+      "tags": ["concurrency", "consistency", "read_write"],
+      "metadata": {
+        "category": "data_integrity",
+        "difficulty": "advanced"
+      }
+    },
+    {
+      "name": "Agent Isolation",
+      "input": "Can agents have private namespaces in the shared knowledge graph?",
+      "expected_output": "While using a shared graph (shared_knowledge_graph), agents can implement logical isolation by: 1) Prefixing node/edge properties with agent IDs, 2) Using unique tags or labels per agent, 3) Filtering queries by agent-specific metadata, 4) Implementing application-level access control.",
+      "tags": ["concurrency", "isolation", "multi_agent"],
+      "metadata": {
+        "category": "architecture",
+        "difficulty": "advanced"
+      }
+    }
+  ],
+  "backup_restore_scenarios": [
+    {
+      "name": "Automated Backup Strategy",
+      "input": "How do I set up automated backups for FalkorDB?",
+      "expected_output": "Use the provided backup.sh script which: 1) Triggers BGSAVE for consistent snapshots, 2) Copies dump.rdb to timestamped backups in ./backups/, 3) Automatically cleans backups older than 7 days, 4) Can be scheduled via cron for automation. Run manually with './scripts/backup.sh'.",
+      "tags": ["backup", "automation", "data_protection"],
+      "metadata": {
+        "category": "operations",
+        "difficulty": "basic"
+      }
+    },
+    {
+      "name": "Disaster Recovery",
+      "input": "How do I restore FalkorDB after complete data loss?",
+      "expected_output": "To restore from backup: 1) Stop FalkorDB with 'docker compose down', 2) Copy backup file to volume: 'cp backups/falkordb_backup_*.rdb ~/OrbStack/docker/volumes/falkordb_falkordb_data/_data/dump.rdb', 3) Start FalkorDB with 'docker compose up -d', 4) Verify data with test queries.",
+      "tags": ["backup", "restore", "disaster_recovery"],
+      "metadata": {
+        "category": "recovery",
+        "difficulty": "intermediate"
+      }
+    }
+  ],
+  "monitoring_scenarios": [
+    {
+      "name": "Real-time Performance Monitoring",
+      "input": "How can I monitor FalkorDB performance in real-time?",
+      "expected_output": "Use './scripts/monitor.sh' for comprehensive monitoring showing: health status, memory usage, connected clients, database statistics, performance metrics, slow queries. For continuous monitoring use 'docker exec -it falkordb redis-cli MONITOR' to watch all commands.",
+      "tags": ["monitoring", "performance", "real_time"],
+      "metadata": {
+        "category": "observability",
+        "difficulty": "basic"
+      }
+    },
+    {
+      "name": "Memory Usage Tracking",
+      "input": "How do I track memory usage patterns over time?",
+      "expected_output": "Track memory with: 1) 'docker exec falkordb redis-cli INFO memory' for current stats, 2) Graph-specific memory with 'GRAPH.MEMORY USAGE shared_knowledge_graph', 3) Container stats with 'docker stats falkordb', 4) Set up Prometheus/Grafana for historical tracking.",
+      "tags": ["monitoring", "memory", "metrics"],
+      "metadata": {
+        "category": "observability",
+        "difficulty": "intermediate"
+      }
+    }
+  ],
+  "edge_cases": [
+    {
+      "name": "Empty Query",
+      "input": "",
+      "expected_output": "Empty query should be handled gracefully without errors",
+      "tags": ["edge_case", "validation"],
+      "metadata": {
+        "category": "error_handling",
+        "difficulty": "basic"
+      }
+    },
+    {
+      "name": "Very Long Query",
+      "input": "A" + "B" * 1000,
+      "expected_output": "Long queries should be truncated or handled with appropriate limits",
+      "tags": ["edge_case", "limits"],
+      "metadata": {
+        "category": "error_handling",
+        "difficulty": "basic"
+      }
+    },
+    {
+      "name": "Special Characters",
+      "input": "Query with special chars: 🚀 & < > \" ' \\ / | $ # @ ! % ^ * ( ) { } [ ]",
+      "expected_output": "Special characters should be properly escaped and handled",
+      "tags": ["edge_case", "encoding"],
+      "metadata": {
+        "category": "error_handling",
+        "difficulty": "intermediate"
+      }
+    },
+    {
+      "name": "Null Values",
+      "input": null,
+      "expected_output": "Null inputs should be handled without crashes",
+      "tags": ["edge_case", "null_handling"],
+      "metadata": {
+        "category": "error_handling",
+        "difficulty": "basic"
+      }
+    }
+  ],
+  "performance_benchmarks": [
+    {
+      "name": "Single Query Baseline",
+      "operation": "search",
+      "expected_latency_ms": 500,
+      "max_latency_ms": 2000,
+      "description": "Simple semantic search should complete quickly"
+    },
+    {
+      "name": "Concurrent Queries",
+      "operation": "concurrent_search",
+      "concurrent_clients": 5,
+      "expected_latency_ms": 1000,
+      "max_latency_ms": 5000,
+      "description": "5 concurrent queries should complete within reasonable time"
+    },
+    {
+      "name": "Write Performance",
+      "operation": "add_episode",
+      "expected_latency_ms": 200,
+      "max_latency_ms": 1000,
+      "description": "Single episode write should be fast"
+    },
+    {
+      "name": "Bulk Write",
+      "operation": "bulk_add",
+      "batch_size": 10,
+      "expected_latency_ms": 2000,
+      "max_latency_ms": 5000,
+      "description": "Bulk write of 10 episodes should scale well"
+    }
+  ]
+}
