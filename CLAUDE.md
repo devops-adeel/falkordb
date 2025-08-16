@@ -49,6 +49,25 @@ docker exec falkordb redis-cli SLOWLOG GET 10
 ./scripts/open-browser.sh
 ```
 
+### Test Suite Commands
+```bash
+# Run basic connectivity test
+./run_tests.sh
+
+# Run all tests with detailed output
+./run_all_tests.sh
+
+# Run success validation tests
+./run_tests_success.sh
+
+# Run custom entity tests
+cd tests && ./run_custom_entity_tests.sh
+
+# Run specific test categories
+pytest tests/test_*_int.py -v  # Integration tests
+pytest tests/test_v*.py -v      # Version/regression tests
+```
+
 ## Architecture Overview
 
 This is a FalkorDB setup optimized for running multiple Graphiti instances on Apple Silicon M3 MacBooks using OrbStack. Key architectural decisions:
@@ -195,7 +214,30 @@ docker exec falkordb redis-cli GRAPH.CONFIG SET NODE_CREATION_BUFFER 16384
 docker exec falkordb redis-cli GRAPH.CONFIG SET OMP_THREAD_COUNT 4
 ```
 
-## Important Notes
+## Test Suite Organization
+
+The test suite is organized in the `/tests` directory with the following structure:
+
+## Test Categories
+- **Regression Tests** (`test_v*.py`, `test_*regression*.py`): Tests for version-specific issues and regressions
+- **Integration Tests** (`test_*_int.py`): Tests for concurrent access, persistence, complex queries
+- **Unit Tests** (`test_custom_entities*.py`, `test_falkordb_gaps.py`): Focused tests for specific features
+- **Workaround Tests** (`test_workaround*.py`): Demonstrations of potential workarounds
+
+## Test Support Files
+- `entities/`: Custom entity definitions for different domains (Arabic, GTD, Islamic Finance)
+- `fixtures/`: Test data and scenarios
+- `utils/`: Helper utilities and workarounds
+- `conftest.py`: Pytest configuration and shared fixtures
+- `requirements.txt`: Test dependencies
+
+## Key Test Files
+- `test_v0177.py`: Validates that v0.17.7 works with FalkorDB (PR #733 fix)
+- `test_minimal_group_id_repro.py`: Minimal reproduction of the group_id issue
+- `test_concurrent_access_int.py`: Multi-agent concurrent write tests
+- `test_custom_entities_basic.py`: Custom entity definition tests
+
+# Important Notes
 
 1. **Always use port 6380** when connecting from Graphiti or other clients
 2. **Browser access** is via `https://falkordb.local` (not localhost:3000)
