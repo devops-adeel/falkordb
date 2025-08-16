@@ -1,0 +1,30 @@
+# Test dependencies for FalkorDB-Graphiti integration tests
+
+# Core testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-timeout>=2.1.0
+pytest-cov>=4.1.0
+
+# Retry logic for LLM calls
+tenacity>=8.2.0
+
+# Async support
+asyncio>=3.4.3
+
+# Docker container management
+docker>=6.1.0
+
+# Graphiti and FalkorDB
+graphiti-core[falkordb]>=0.3.0
+falkordb>=1.0.0
+
+# Langfuse for real conversation data
+langfuse>=2.0.0
+
+# OpenAI for LLM operations
+openai>=1.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+rich>=13.0.0  # For pretty printing
