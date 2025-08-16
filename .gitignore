@@ -34,6 +34,16 @@ venv/
 env/
 ENV/
 
+# Test artifacts
+tests/**/__pycache__/
+tests/.pytest_cache/
+tests/**/*.pyc
+tests/htmlcov/
+tests/.coverage
+tests/coverage.xml
+tests/*.egg-info/
+tests/docs/issues/*.tmp
+
 # Temporary files
 *.tmp
 *.temp
