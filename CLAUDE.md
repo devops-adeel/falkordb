@@ -50,22 +50,73 @@ docker exec falkordb redis-cli SLOWLOG GET 10
 ```
 
 ### Test Suite Commands
+
+#### Using the unified test runner (./test.sh)
 ```bash
-# Run basic connectivity test
-./run_tests.sh
+# Run all tests
+./test.sh
 
-# Run all tests with detailed output
-./run_all_tests.sh
+# Run quick smoke tests
+./test.sh --quick
 
-# Run success validation tests
-./run_tests_success.sh
+# Run integration tests with verbose output
+./test.sh --integration --verbose
 
-# Run custom entity tests
-cd tests && ./run_custom_entity_tests.sh
+# Run regression tests
+./test.sh --regression
+
+# Run tests with coverage
+./test.sh --coverage
+
+# Get help
+./test.sh --help
+```
+
+#### Using Make (alternative)
+```bash
+# Run all tests
+make test
+
+# Run quick smoke tests
+make test-quick
+
+# Run specific test suites
+make test-integration    # Integration tests
+make test-regression     # Regression tests
+make test-custom        # Custom entity tests
+
+# Run with coverage
+make coverage
+make coverage-open      # Open HTML report
+
+# Docker management
+make docker-up          # Start FalkorDB
+make docker-down        # Stop FalkorDB
+make docker-status      # Check status
+
+# Development helpers
+make clean             # Clean test artifacts
+make lint              # Run linting
+make format            # Format code
+
+# Combined workflows
+make ci                # Run full CI pipeline
+make all               # Start docker, test, coverage
+```
+
+#### Direct pytest commands
+```bash
+# Run all tests
+pytest tests/ -v
 
 # Run specific test categories
-pytest tests/test_*_int.py -v  # Integration tests
-pytest tests/test_v*.py -v      # Version/regression tests
+pytest tests/test_*_int.py -v     # Integration tests
+pytest tests/test_v*.py -v         # Version/regression tests
+pytest tests/test_custom*.py -v    # Custom entity tests
+
+# Run with markers
+pytest -m "integration" tests/
+pytest -m "slow" tests/
 ```
 
 ## Architecture Overview
