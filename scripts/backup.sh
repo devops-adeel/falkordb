@@ -7,7 +7,9 @@ set -e
 
 # Load environment variables
 if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a
+    source <(grep -v '^#' .env | grep -v '^$')
+    set +a
 fi
 
 # Configuration

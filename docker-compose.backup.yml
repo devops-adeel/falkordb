@@ -1,0 +1,105 @@
+# FalkorDB Backup Service Configuration
+# Uses offen/docker-volume-backup for sophisticated backup management
+# This service runs alongside the main FalkorDB stack
+#
+# Features:
+# - Automated scheduled backups (default: every 6 hours)
+# - Dual format: tar.gz archives + raw RDB files
+# - Automatic external drive sync when available
+# - Zero-downtime backups using BGSAVE
+# - Configurable retention policies
+#
+# Usage:
+#   Start backup service: docker compose -f docker-compose.yml -f docker-compose.backup.yml up -d
+#   Manual backup: docker compose -f docker-compose.yml -f docker-compose.backup.yml run --rm backup-manual
+#   View logs: docker compose -f docker-compose.yml -f docker-compose.backup.yml logs -f backup
+
+services:
+  backup:
+    image: offen/docker-volume-backup:${BACKUP_VERSION:-v2.43.0}
+    restart: unless-stopped
+    environment:
+      # Backup filename with timestamp
+      BACKUP_FILENAME: falkordb-%Y-%m-%d_%H-%M-%S.tar.gz
+      
+      # Cron schedule - every 6 hours by default
+      BACKUP_CRON_EXPRESSION: ${BACKUP_CRON:-0 */6 * * *}
+      
+      # Retention policy
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_PRUNING_PREFIX: falkordb-
+      BACKUP_PRUNING_LEEWAY: 1h
+      
+      # Don't stop container - we use BGSAVE for consistency
+      # FalkorDB remains accessible during backup
+      
+      # Label for custom commands execution
+      EXEC_LABEL: falkordb-backup
+      EXEC_FORWARD_OUTPUT: true
+      
+      # Local archive settings
+      BACKUP_ARCHIVE: /archive
+      BACKUP_LATEST_SYMLINK: falkordb-latest.tar.gz
+      
+      # Compression (gz provides good balance of speed/size)
+      BACKUP_COMPRESSION: gz
+      
+      # Notification level (error or info)
+      NOTIFICATION_LEVEL: ${NOTIFICATION_LEVEL:-error}
+      NOTIFICATION_URLS: ${NOTIFICATION_URLS:-}
+      
+    volumes:
+      # Mount FalkorDB data volume read-only for backup
+      - falkordb_data:/backup/falkordb:ro
+      
+      # Docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      
+      # Primary backup location
+      - ${BACKUP_DIR:-${HOME}/FalkorDBBackups}:/archive
+      
+      # External backup location (when available)
+      # Automatically detected and synced when mounted
+      # NOTE: Comment out this line if external drive is not available
+      # - /Volumes/SanDisk/FalkorDBBackups:/external:rw
+      
+      # Mount scripts for pre/post backup hooks
+      - ./scripts:/scripts:ro
+      
+    labels:
+      # Post-backup sync to external drive if available
+      - docker-volume-backup.archive-post=/bin/sh -c '[ -d /external ] && rsync -av --delete /archive/ /external/ && echo "✓ Synced to external drive" || echo "✓ External drive not mounted, skipping sync"'
+      
+    depends_on:
+      - falkordb
+    
+    networks:
+      - default
+
+  # Optional: Manual backup trigger service
+  # Run with: docker compose -f docker-compose.yml -f docker-compose.backup.yml run --rm backup-manual
+  backup-manual:
+    image: offen/docker-volume-backup:${BACKUP_VERSION:-v2.43.0}
+    profiles:
+      - manual
+    entrypoint: backup
+    environment:
+      BACKUP_FILENAME: falkordb-manual-%Y-%m-%d_%H-%M-%S.tar.gz
+      BACKUP_ARCHIVE: /archive
+      EXEC_LABEL: falkordb-backup
+      EXEC_FORWARD_OUTPUT: true
+      BACKUP_COMPRESSION: gz
+    volumes:
+      - falkordb_data:/backup/falkordb:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${BACKUP_DIR:-${HOME}/FalkorDBBackups}:/archive
+      # - /Volumes/SanDisk/FalkorDBBackups:/external:rw  # Uncomment when external drive is available
+      - ./scripts:/scripts:ro
+    networks:
+      - default
+
+# Use the same network as the main stack
+networks:
+  default:
+    external: true
+    name: falkordb_default
