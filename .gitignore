@@ -3,6 +3,17 @@
 .env.local
 .env.*.local
 
+# Secrets Management (1Password)
+secrets/.env.actual
+secrets/.env.injected
+secrets/*.actual
+secrets/*.injected
+secrets/*.tmp
+/tmp/.falkordb-env-*
+.op/
+*.session
+op-session-*
+
 # Backups
 backups/*.rdb
 backups/*.bak

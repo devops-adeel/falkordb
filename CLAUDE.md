@@ -2,6 +2,50 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Security & Secrets Management (1Password Integration)
+
+FalkorDB supports two deployment modes:
+1. **Standard Mode** (`make up`): Uses default/insecure values suitable for development
+2. **Secure Mode** (`make up-secure`): Injects secrets from 1Password HomeLab vault
+
+### Initial Setup (One-time)
+```bash
+# Setup 1Password vault and create default secrets
+make setup-vault
+
+# Verify secrets are configured
+make verify-secrets
+```
+
+### Secure Deployment
+```bash
+# Deploy with 1Password secrets injection
+make up-secure
+
+# Standard deployment (development, no secrets)
+make up
+```
+
+### Managing Secrets
+```bash
+# View secrets in 1Password
+op item get "FalkorDB/Core" --vault=HomeLab
+op item get "FalkorDB/Integration" --vault=HomeLab
+op item get "FalkorDB/OAuth" --vault=HomeLab
+
+# Update API keys (e.g., for Graphiti or OpenAI)
+op item edit "37e5lxhox53xsvzp3ozau32nha" --vault=HomeLab \
+  "graphiti-api-key=YOUR-ACTUAL-KEY" \
+  "openai-api-key=sk-YOUR-ACTUAL-KEY"
+```
+
+### Secret References
+The `secrets/.env.1password` file contains references (not actual secrets):
+- Uses item IDs instead of names due to slashes in titles
+- Safe to commit to version control
+- Actual secrets stored securely in 1Password
+- Ephemeral injection during deployment with immediate cleanup
+
 ## Common Development Commands
 
 ### Docker Container Management
@@ -17,11 +61,14 @@ docker compose logs -f falkordb
 
 # Check container status
 docker compose ps
+
+# Restart container (after config changes)
+docker compose restart
 ```
 
 ### FalkorDB Operations
 ```bash
-# Test connection (using port 6380 to avoid conflicts)
+# Test connection
 docker exec falkordb redis-cli ping
 
 # Create/verify shared knowledge graph
@@ -38,6 +85,33 @@ docker exec falkordb redis-cli SLOWLOG GET 10
 ```
 
 ### Monitoring & Maintenance
+
+#### Sophisticated Backup System (offen/docker-volume-backup) - RECOMMENDED
+```bash
+# Start automated backup service (runs every 6 hours)
+make backup-up
+
+# Check backup service status and recent backups
+make backup-status
+
+# Trigger manual backup
+make backup-manual
+
+# View backup service logs
+make backup-logs
+
+# Stop backup service
+make backup-down
+
+# Restore from backup archive
+docker run --rm -v falkordb_data:/data -v ~/FalkorDBBackups:/backup alpine \
+  tar -xzf /backup/falkordb-latest.tar.gz -C /data --strip-components=2
+
+# Configure external drive sync (edit docker-compose.backup.yml)
+# Uncomment the line: - /Volumes/SanDisk/FalkorDBBackups:/external:rw
+```
+
+#### Legacy Backup Scripts (still available)
 ```bash
 # Run comprehensive monitoring dashboard
 ./scripts/monitor.sh
@@ -45,7 +119,14 @@ docker exec falkordb redis-cli SLOWLOG GET 10
 # Create backup (stored in ./backups/)
 ./scripts/backup.sh
 
-# Open browser interface (https://falkordb.local)
+# Restore from backup
+./scripts/restore.sh                  # Interactive mode
+./scripts/restore.sh -f backup.rdb    # Restore specific file
+
+# Setup automated backups via cron
+./scripts/automated-backup.sh setup-cron "0 */6 * * *"
+
+# Open browser interface
 ./scripts/open-browser.sh
 ```
 
@@ -124,9 +205,9 @@ pytest -m "slow" tests/
 This is a FalkorDB setup optimized for running multiple Graphiti instances on Apple Silicon M3 MacBooks using OrbStack. Key architectural decisions:
 
 ### Port Configuration
-- **Redis/FalkorDB protocol**: Port **6380** (not default 6379 to avoid conflicts)
-- **Browser UI**: Accessible via `https://falkordb.local` (OrbStack domain with auto HTTPS)
-- **Why 6380**: Prevents conflicts with local Redis installations or other services
+- **Redis/FalkorDB protocol**: Port **6379** via `falkordb.local:6379` (OrbStack domain)
+- **Browser UI**: Accessible at `https://falkordb-browser.local/` (HTTPS via OrbStack proxy)
+- **No port conflicts**: Each service uses its own OrbStack domain (falkordb.local vs redis.langfuse.local)
 
 ### Performance Tuning (M3 Optimized)
 - `THREAD_COUNT=8`: Matches M3 performance cores for concurrent query processing
@@ -148,10 +229,10 @@ This is a FalkorDB setup optimized for running multiple Graphiti instances on Ap
 from graphiti_core import Graphiti
 from graphiti_core.driver.falkordb_driver import FalkorDriver
 
-# Note: Using port 6380, not default 6379
+# Connect using OrbStack domain
 driver = FalkorDriver(
-    host="localhost",
-    port=6380,  # Custom port to avoid conflicts
+    host="falkordb.local",  # OrbStack domain
+    port=6379,  # Standard Redis port
     username="falkor_user",  # Optional
     password="falkor_password",  # Optional
     database="shared_knowledge_graph"  # Shared database for all instances
@@ -168,8 +249,8 @@ from redis.asyncio import BlockingConnectionPool
 
 async def create_graphiti_client():
     pool = BlockingConnectionPool(
-        host="localhost",
-        port=6380,  # Using custom port
+        host="falkordb.local",  # OrbStack domain
+        port=6379,  # Standard Redis port
         max_connections=16,  # Support multiple concurrent Graphiti instances
         timeout=None,
         decode_responses=True
@@ -218,13 +299,15 @@ docker exec falkordb redis-cli GRAPH.DELETE unwanted_graph
 ## Troubleshooting Guide
 
 ### Port Conflicts
-If port 6380 is already in use:
+With OrbStack domains, port conflicts are eliminated:
 ```bash
-# Check what's using the port
-lsof -i :6380
+# FalkorDB is accessible at:
+falkordb.local:6379  # Redis protocol
+falkordb-browser.local  # Browser UI (HTTPS enabled)
 
-# Modify docker-compose.yml to use a different port
-# Change "6380:6379" to "6381:6379" or another available port
+# Other services use their own domains:
+redis.langfuse.local:6379  # Langfuse Redis
+postgres.langfuse.local:5432  # Langfuse PostgreSQL
 ```
 
 ### Memory Issues
@@ -290,9 +373,46 @@ The test suite is organized in the `/tests` directory with the following structu
 
 # Important Notes
 
-1. **Always use port 6380** when connecting from Graphiti or other clients
-2. **Browser access** is via `https://falkordb.local` (not localhost:3000)
-3. **Backups** are automatically retained for 7 days in `./backups/`
-4. **Named volumes** persist data even after `docker compose down`
-5. **M3 optimization** assumes 8 performance cores - adjust THREAD_COUNT if needed
-6. **Graph name** `shared_knowledge_graph` is used by all Graphiti instances by default
+1. **Connection endpoints**:
+   - Redis protocol: `falkordb.local:6379`
+   - Browser UI: `https://falkordb-browser.local/`
+2. **Backup & Restore**:
+   - **Sophisticated System** (offen/docker-volume-backup):
+     - Start service: `make backup-up` (automated every 6 hours)
+     - Manual backup: `make backup-manual`
+     - Check status: `make backup-status`
+     - Backups stored: `~/FalkorDBBackups/`
+     - External sync: Auto-syncs to `/Volumes/SanDisk/` when mounted
+   - **Legacy Scripts** (still available):
+     - Manual backup: `./scripts/backup.sh`
+     - Restore: `./scripts/restore.sh`
+3. **Data persistence**: Named volume `falkordb_data` survives container restarts
+4. **M3 optimization**: Configured for 8 performance cores (adjust THREAD_COUNT if needed)
+5. **Default graph**: `shared_knowledge_graph` is used by all Graphiti instances
+6. **Health checks**: Increased timeouts prevent false failures during initialization
+
+## Backup Architecture (offen/docker-volume-backup)
+
+The sophisticated backup system uses `offen/docker-volume-backup` for enterprise-grade features:
+
+### Features
+- **Automated Scheduling**: Runs every 6 hours via built-in cron
+- **Zero Downtime**: Uses Redis BGSAVE for consistent backups without stopping FalkorDB
+- **Dual Storage**: Local backups in `~/FalkorDBBackups/` with optional external drive sync
+- **Retention Management**: Automatic cleanup of backups older than 7 days
+- **Manual Triggers**: On-demand backups via `make backup-manual`
+- **Monitoring**: Check status with `make backup-status`, view logs with `make backup-logs`
+
+### Configuration
+Edit `.env` file to adjust:
+- `BACKUP_CRON`: Schedule (default: "0 */6 * * *")
+- `BACKUP_RETENTION_DAYS`: Days to keep (default: 7)
+- `BACKUP_DIR`: Storage location (default: ~/FalkorDBBackups)
+
+### External Drive Support
+To enable external drive sync:
+1. Edit `docker-compose.backup.yml`
+2. Uncomment the line: `- /Volumes/SanDisk/FalkorDBBackups:/external:rw`
+3. Restart backup service: `make backup-down && make backup-up`
+
+When the external drive is mounted, backups automatically sync using rsync.

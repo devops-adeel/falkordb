@@ -78,6 +78,25 @@ docker-up: ## Start FalkorDB container
 		exit 1; \
 	fi
 
+# Secure deployment with 1Password
+.PHONY: up
+up: docker-up ## Start FalkorDB (standard, no secrets)
+
+.PHONY: up-secure
+up-secure: ## Start FalkorDB with 1Password secrets
+	@echo "$(BLUE)Starting FalkorDB with 1Password secrets...$(NC)"
+	@./scripts/deploy-secure.sh
+
+.PHONY: setup-vault
+setup-vault: ## Setup 1Password HomeLab vault structure
+	@echo "$(BLUE)Setting up 1Password vault...$(NC)"
+	@./scripts/setup-vault.sh
+
+.PHONY: verify-secrets
+verify-secrets: ## Verify 1Password secrets exist
+	@echo "$(BLUE)Verifying 1Password secrets...$(NC)"
+	@./scripts/setup-vault.sh --non-interactive
+
 .PHONY: docker-down
 docker-down: ## Stop FalkorDB container
 	@echo "$(YELLOW)Stopping FalkorDB...$(NC)"
@@ -181,9 +200,101 @@ coverage-open: ## Open coverage report in browser
 monitor: ## Run monitoring dashboard
 	@./scripts/monitor.sh
 
+# Backup Management
 .PHONY: backup
-backup: ## Create FalkorDB backup
+backup: ## Create FalkorDB backup (legacy)
 	@./scripts/backup.sh
+
+.PHONY: backup-full
+backup-full: ## Full backup with validation using enhanced system
+	@echo "$(BLUE)Running full backup with validation...$(NC)"
+	@./backup/scripts/falkordb-backup.sh
+
+.PHONY: backup-monitor
+backup-monitor: ## Run backup monitoring checks
+	@echo "$(BLUE)Running backup health monitoring...$(NC)"
+	@./backup/scripts/monitor-backups.sh
+
+.PHONY: backup-restore
+backup-restore: ## Interactive restore from backup
+	@echo "$(BLUE)Starting interactive restore...$(NC)"
+	@./backup/scripts/restore-falkordb.sh
+
+.PHONY: backup-restore-latest
+backup-restore-latest: ## Restore from latest backup
+	@echo "$(BLUE)Restoring from latest backup...$(NC)"
+	@./backup/scripts/restore-falkordb.sh --latest
+
+.PHONY: backup-validate
+backup-validate: ## Validate latest backup integrity
+	@echo "$(BLUE)Validating latest backup...$(NC)"
+	@./backup/scripts/validate-rdb.sh
+
+.PHONY: backup-test
+backup-test: ## Test restore to temporary container
+	@echo "$(BLUE)Testing restore to temporary container...$(NC)"
+	@./backup/scripts/restore-falkordb.sh --test --latest
+
+.PHONY: backup-clean
+backup-clean: ## Clean old backups manually
+	@echo "$(YELLOW)Cleaning old backups...$(NC)"
+	@find ~/FalkorDBBackups -name "backup-*" -type d -mtime +7 -exec rm -rf {} \; 2>/dev/null || true
+	@echo "$(GREEN)✅ Old backups cleaned$(NC)"
+
+.PHONY: backup-setup-cron
+backup-setup-cron: ## Setup automated backups via cron
+	@echo "$(BLUE)Setting up automated backups...$(NC)"
+	@./scripts/automated-backup.sh setup-cron "0 */6 * * *"
+
+# offen/docker-volume-backup Management (New System)
+.PHONY: backup-up
+backup-up: ## Start automated backup service (offen/docker-volume-backup)
+	@echo "$(YELLOW)Starting automated backup service...$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.backup.yml up -d
+	@sleep 2
+	@if docker compose -f docker-compose.yml -f docker-compose.backup.yml ps backup | grep -q "running"; then \
+		echo "$(GREEN)✅ Backup service is running$(NC)"; \
+		echo "   Schedule: Every 6 hours"; \
+		echo "   Location: ~/FalkorDBBackups"; \
+	else \
+		echo "$(RED)❌ Backup service failed to start$(NC)"; \
+		exit 1; \
+	fi
+
+.PHONY: backup-down
+backup-down: ## Stop automated backup service
+	@echo "$(YELLOW)Stopping backup service...$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.backup.yml stop backup
+	@echo "$(GREEN)✅ Backup service stopped$(NC)"
+
+.PHONY: backup-manual
+backup-manual: ## Trigger manual backup (offen/docker-volume-backup)
+	@echo "$(BLUE)Triggering manual backup...$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.backup.yml run --rm backup-manual
+	@echo "$(GREEN)✅ Manual backup completed$(NC)"
+
+.PHONY: backup-logs
+backup-logs: ## View backup service logs
+	@docker compose -f docker-compose.yml -f docker-compose.backup.yml logs -f backup
+
+.PHONY: backup-status
+backup-status: ## Check backup system status
+	@echo "$(BLUE)=== Backup Service Status ===$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.backup.yml ps backup 2>/dev/null || echo "Service not running"
+	@echo ""
+	@echo "$(BLUE)=== Recent Backups ===$(NC)"
+	@ls -lht ~/FalkorDBBackups/*.tar.gz 2>/dev/null | head -5 || echo "No backups found"
+	@echo ""
+	@echo "$(BLUE)=== Recent RDB Files ===$(NC)"
+	@ls -lht ~/FalkorDBBackups/rdb/*.rdb 2>/dev/null | head -5 || echo "No RDB files found"
+	@echo ""
+	@echo "$(BLUE)=== External Drive ===$(NC)"
+	@if [ -d /Volumes/SanDisk/FalkorDBBackups ]; then \
+		echo "$(GREEN)✓ External drive mounted$(NC)"; \
+		ls -lht /Volumes/SanDisk/FalkorDBBackups/*.tar.gz 2>/dev/null | head -3; \
+	else \
+		echo "✗ External drive not mounted"; \
+	fi
 
 # Development helpers
 .PHONY: shell

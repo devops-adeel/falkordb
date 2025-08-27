@@ -7,13 +7,27 @@ services:
     platform: linux/arm64    # Critical for M3 performance
     container_name: falkordb
     labels:
-      - "dev.orbstack.domains=falkordb.local"  # Custom domain for browser access
-    ports:
-      - "6380:6379"          # Redis/FalkorDB protocol - mapped to 6380 to avoid conflicts
-      # Port 3000 (browser UI) is accessible via https://falkordb.local (no port mapping needed)
+      - "dev.orbstack.domains=falkordb.local,falkordb-browser.local"  # Custom domains for access
+      - "dev.orbstack.tcp-port=6379"          # Direct TCP access via falkordb.local:6379
+      - "dev.orbstack.http-port=3000"         # Explicitly specify HTTP port for browser UI
+      # Backup integration with offen/docker-volume-backup
+      - "docker-volume-backup.archive-pre=/bin/sh -c 'redis-cli BGSAVE && sleep 2'"
+      - "docker-volume-backup.exec-label=falkordb-backup"
+      - "docker-volume-backup.archive-post=/bin/sh -c 'echo Backup completed at $(date)'"
     volumes:
       - falkordb_data:/var/lib/falkordb/data  # Named volume for persistence
     environment:
+      # NextAuth configuration for browser UI
+      - NEXTAUTH_URL=http://falkordb-browser.local
+      - AUTH_TRUST_HOST=true
+      - NEXTAUTH_URL_INTERNAL=http://falkordb:3000
+      # NextAuth secret (injected via 1Password in secure mode, defaults to insecure value)
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-insecure-default-secret-CHANGE-IN-PRODUCTION}
+      # Optional Redis AUTH password (future feature, currently not enforced by FalkorDB)
+      - FALKORDB_AUTH_PASSWORD=${FALKORDB_AUTH_PASSWORD:-}
+      # Optional integration API keys (only needed if using these features)
+      - GRAPHITI_API_KEY=${GRAPHITI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       # Performance tuning for multiple concurrent connections
       - FALKORDB_ARGS=THREAD_COUNT 8 NODE_CREATION_BUFFER 8192 CACHE_SIZE 50 OMP_THREAD_COUNT 2
       # Redis memory management
@@ -22,9 +36,9 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      timeout: 5s       # Reasonable timeout for ping command
+      retries: 3        # Standard retry count
+      start_period: 30s # Sufficient time for initialization
 
 volumes:
   falkordb_data:
