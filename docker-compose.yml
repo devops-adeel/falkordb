@@ -6,9 +6,10 @@ services:
     image: falkordb/falkordb:latest
     platform: linux/arm64    # Critical for M3 performance
     container_name: falkordb
+    ports:
+      - "6379:6379"                            # Standard Docker port mapping for Redis protocol
     labels:
       - "dev.orbstack.domains=falkordb.local,falkordb-browser.local"  # Custom domains for access
-      - "dev.orbstack.tcp-port=6379"          # Direct TCP access via falkordb.local:6379
       - "dev.orbstack.http-port=3000"         # Explicitly specify HTTP port for browser UI
       # Backup integration with offen/docker-volume-backup
       - "docker-volume-backup.archive-pre=/bin/sh -c 'redis-cli BGSAVE && sleep 2'"

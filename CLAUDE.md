@@ -205,7 +205,9 @@ pytest -m "slow" tests/
 This is a FalkorDB setup optimized for running multiple Graphiti instances on Apple Silicon M3 MacBooks using OrbStack. Key architectural decisions:
 
 ### Port Configuration
-- **Redis/FalkorDB protocol**: Port **6379** via `falkordb.local:6379` (OrbStack domain)
+- **Redis/FalkorDB protocol**: Port **6379** exposed via standard Docker port mapping
+  - Host access: `localhost:6379` or `falkordb.local:6379`
+  - Container-to-container: `falkordb:6379` (service name)
 - **Browser UI**: Accessible at `https://falkordb-browser.local/` (HTTPS via OrbStack proxy)
 - **No port conflicts**: Each service uses its own OrbStack domain (falkordb.local vs redis.langfuse.local)
 
@@ -298,17 +300,25 @@ docker exec falkordb redis-cli GRAPH.DELETE unwanted_graph
 
 ## Troubleshooting Guide
 
-### Port Conflicts
-With OrbStack domains, port conflicts are eliminated:
+### Port Configuration & Access Patterns
+FalkorDB uses standard Docker port mapping for reliable access:
 ```bash
-# FalkorDB is accessible at:
-falkordb.local:6379  # Redis protocol
-falkordb-browser.local  # Browser UI (HTTPS enabled)
+# From host machine (tests, debugging):
+localhost:6379         # Standard localhost access
+falkordb.local:6379   # OrbStack domain with port
+
+# From other containers:
+falkordb:6379         # Service name (recommended)
+
+# Browser UI:
+https://falkordb-browser.local  # Auto-detected HTTP port
 
 # Other services use their own domains:
-redis.langfuse.local:6379  # Langfuse Redis
-postgres.langfuse.local:5432  # Langfuse PostgreSQL
+redis.langfuse.local:6379      # Langfuse Redis
+postgres.langfuse.local:5432   # Langfuse PostgreSQL
 ```
+
+Note: We use standard Docker port mapping (`ports: ["6379:6379"]`) instead of OrbStack labels for non-HTTP services due to known connectivity issues with TCP services via OrbStack domains.
 
 ### Memory Issues
 If experiencing high memory usage:
@@ -374,7 +384,8 @@ The test suite is organized in the `/tests` directory with the following structu
 # Important Notes
 
 1. **Connection endpoints**:
-   - Redis protocol: `falkordb.local:6379`
+   - Redis protocol (from host): `localhost:6379` or `falkordb.local:6379`
+   - Redis protocol (container-to-container): `falkordb:6379`
    - Browser UI: `https://falkordb-browser.local/`
 2. **Backup & Restore**:
    - **Sophisticated System** (offen/docker-volume-backup):
