@@ -296,6 +296,42 @@ backup-status: ## Check backup system status
 		echo "✗ External drive not mounted"; \
 	fi
 
+# Changelog Management
+.PHONY: changelog
+changelog: ## Generate/update CHANGELOG.md using git-cliff
+	@echo "$(BLUE)Generating CHANGELOG.md...$(NC)"
+	@git cliff -o CHANGELOG.md
+	@echo "$(GREEN)✓ CHANGELOG.md updated$(NC)"
+
+.PHONY: changelog-unreleased
+changelog-unreleased: ## Show unreleased changes
+	@echo "$(BLUE)Showing unreleased changes...$(NC)"
+	@git cliff --unreleased
+
+.PHONY: changelog-tag
+changelog-tag: ## Generate changelog for a specific tag (use TAG=v1.0.0)
+	@if [ -z "$(TAG)" ]; then \
+		echo "$(RED)Error: TAG is required (e.g., make changelog-tag TAG=v1.0.0)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Generating changelog for $(TAG)...$(NC)"
+	@git cliff --tag $(TAG) -o CHANGELOG.md
+	@echo "$(GREEN)✓ CHANGELOG.md updated for $(TAG)$(NC)"
+
+.PHONY: release
+release: ## Create a release (use VERSION=v1.0.0)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "$(RED)Error: VERSION is required (e.g., make release VERSION=v1.0.0)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Creating release $(VERSION)...$(NC)"
+	@git cliff --tag $(VERSION) -o CHANGELOG.md
+	@git add CHANGELOG.md
+	@git commit -m "chore(release): prepare for $(VERSION)"
+	@git tag -a $(VERSION) -m "Release $(VERSION)"
+	@echo "$(GREEN)✓ Release $(VERSION) created$(NC)"
+	@echo "$(YELLOW)Run 'git push --follow-tags' to push the release$(NC)"
+
 # Development helpers
 .PHONY: shell
 shell: venv ## Open Python shell with test environment
