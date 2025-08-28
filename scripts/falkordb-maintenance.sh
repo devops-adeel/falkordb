@@ -17,7 +17,7 @@ echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
 echo ""
 
 # Check if FalkorDB container is running
-if ! docker ps | grep -q falkordb; then
+if ! docker ps --format "{{.Names}}" | grep -q "falkordb"; then
     echo -e "${RED}Error: FalkorDB container is not running${NC}"
     exit 1
 fi
@@ -29,16 +29,16 @@ echo ""
 
 # Check graph memory if exists
 echo -e "${YELLOW}Graph Memory Usage:${NC}"
-if docker exec falkordb redis-cli GRAPH.LIST 2>/dev/null | grep -q "shared_gtd_knowledge"; then
-    docker exec falkordb redis-cli GRAPH.MEMORY USAGE shared_gtd_knowledge 2>/dev/null || echo "Graph not found or empty"
+if docker exec falkordb redis-cli GRAPH.LIST 2>/dev/null | grep -q "shared_knowledge"; then
+    docker exec falkordb redis-cli GRAPH.MEMORY USAGE shared_knowledge 2>/dev/null || echo "Graph not found or empty"
 else
-    echo "No shared_gtd_knowledge graph found"
+    echo "No shared_knowledge graph found"
 fi
 echo ""
 
 # Check for duplicate UUIDs
 echo -e "${YELLOW}Checking for Duplicate UUIDs:${NC}"
-DUPLICATE_CHECK=$(docker exec falkordb redis-cli GRAPH.QUERY shared_gtd_knowledge \
+DUPLICATE_CHECK=$(docker exec falkordb redis-cli GRAPH.QUERY shared_knowledge \
     "MATCH (n) WHERE EXISTS(n.uuid) RETURN n.uuid as uuid, COUNT(*) as cnt ORDER BY cnt DESC LIMIT 10" 2>/dev/null || echo "")
 
 if [ -n "$DUPLICATE_CHECK" ]; then

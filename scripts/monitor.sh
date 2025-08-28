@@ -45,10 +45,10 @@ show_memory() {
     done
     
     # Graph-specific memory if database exists
-    if docker exec falkordb redis-cli GRAPH.LIST 2>/dev/null | grep -q "shared_knowledge_graph"; then
+    if docker exec falkordb redis-cli GRAPH.LIST 2>/dev/null | grep -q "shared_knowledge"; then
         echo ""
-        echo -e "${YELLOW}Graph Memory Usage (shared_knowledge_graph):${NC}"
-        docker exec falkordb redis-cli GRAPH.MEMORY USAGE shared_knowledge_graph 2>/dev/null || echo "  No detailed memory stats available yet"
+        echo -e "${YELLOW}Graph Memory Usage (shared_knowledge):${NC}"
+        docker exec falkordb redis-cli GRAPH.MEMORY USAGE shared_knowledge 2>/dev/null || echo "  No detailed memory stats available yet"
     fi
     echo ""
 }
