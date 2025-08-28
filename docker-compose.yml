@@ -6,8 +6,7 @@ services:
     image: falkordb/falkordb:latest
     platform: linux/arm64    # Critical for M3 performance
     container_name: falkordb
-    ports:
-      - "6379:6379"                            # Standard Docker port mapping for Redis protocol
+    # No port mapping needed - OrbStack provides access via falkordb.local:6379
     labels:
       - "dev.orbstack.domains=falkordb.local,falkordb-browser.local"  # Custom domains for access
       - "dev.orbstack.http-port=3000"         # Explicitly specify HTTP port for browser UI
@@ -20,7 +19,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 3.5GB
+          memory: 8GB
     environment:
       # NextAuth configuration for browser UI
       - NEXTAUTH_URL=http://falkordb-browser.local
@@ -49,3 +48,8 @@ services:
 volumes:
   falkordb_data:
     driver: local
+
+networks:
+  default:
+    external: true
+    name: orbstack-shared
