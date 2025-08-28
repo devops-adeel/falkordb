@@ -46,6 +46,63 @@ The `secrets/.env.1password` file contains references (not actual secrets):
 - Actual secrets stored securely in 1Password
 - Ephemeral injection during deployment with immediate cleanup
 
+## Memory Optimization & Troubleshooting (Critical - August 2025)
+
+### Memory Explosion Issue (Resolved)
+**Problem Discovered**: 451KB dump.rdb file expanded to 3.5GB in memory (7,762x expansion)
+- **Root Cause**: `duplicate_node_uuids` from Graphiti combined with FalkorDB's default NODE_CREATION_BUFFER=16,384 caused sparse matrix fragmentation
+- **Impact**: Container OOM crashes with exit code 137
+
+### Optimized Configuration
+The following changes prevent memory explosions with temporal graphs:
+```yaml
+command: >
+  redis-server
+  --loadmodule /var/lib/falkordb/bin/falkordb.so 
+    NODE_CREATION_BUFFER 512        # Reduced from 16,384 (32x reduction)
+    QUERY_MEM_CAPACITY 268435456    # 256MB limit per query
+    EFFECTS_THRESHOLD 100            # 100μs for replication behavior
+  --maxmemory 2gb
+  --maxmemory-policy volatile-lru    # Better for temporal data
+  --save 3600 10
+  --save 300 100
+```
+
+### Monitoring & Diagnostics
+```bash
+# Run comprehensive maintenance check
+./scripts/falkordb-maintenance.sh
+
+# Check for duplicate UUIDs (root cause of memory issues)
+docker exec falkordb redis-cli GRAPH.QUERY shared_gtd_knowledge \
+  "MATCH (n) WHERE EXISTS(n.uuid) 
+   RETURN n.uuid as uuid, COUNT(*) as cnt 
+   ORDER BY cnt DESC LIMIT 10"
+
+# Forensic analysis of RDB dumps
+python3 ~/FalkorDBBackups/debug-*/analyze_rdb.py dump.rdb.backup
+
+# Monitor memory in real-time
+docker exec falkordb redis-cli INFO memory | grep -E "used_memory_human"
+
+# Check matrix configuration
+docker exec falkordb redis-cli GRAPH.CONFIG GET NODE_CREATION_BUFFER
+```
+
+### Grafana Monitoring
+- Dashboard available at: http://grafana.local
+- Key alerts configured:
+  - Memory usage > 1.5GB warning
+  - Memory usage > 1.8GB critical
+  - Slow query tracking
+  - Cache hit rate < 70%
+
+### Prevention Strategies
+1. **Graphiti Integration**: Ensure duplicate detection is enabled
+2. **Regular Maintenance**: Run deduplication queries weekly
+3. **Memory Monitoring**: Check dashboard daily during development
+4. **Backup Before Changes**: Always backup before major imports
+
 ## Common Development Commands
 
 ### Docker Container Management

@@ -12,6 +12,33 @@ This repository provides a Docker Compose setup for FalkorDB, a high-performance
 - **Low-latency queries** for real-time AI agent interactions
 - **OrbStack** integration for optimal Docker performance on macOS
 
+## 📚 Documentation
+
+### For Developers New to FalkorDB/GraphRAG
+
+- **[FalkorDB + Graphiti Guide](./docs/FALKORDB_GRAPHITI_GUIDE.md)** - Start here! Complete guide with graph database primer
+- **[Memory Forensics](./docs/MEMORY_FORENSICS.md)** - Deep dive into the 7,762x memory expansion issue and solution
+- **[Graphiti Integration](./docs/GRAPHITI_INTEGRATION.md)** - Practical patterns for bi-temporal knowledge graphs
+- **[Cypher Query Primer](./docs/CYPHER_PRIMER.md)** - Learn Cypher with GraphRAG-specific examples
+- **[Troubleshooting Guide](./docs/TROUBLESHOOTING.md)** - Systematic diagnostic workflows for common issues
+
+### Quick Links
+
+| Document | Purpose | Read Time |
+|----------|---------|-----------|
+| [Quick Start Guide](./docs/FALKORDB_GRAPHITI_GUIDE.md#quick-start) | Get running in 5 minutes | 5 min |
+| [Memory Explosion Case](./docs/MEMORY_FORENSICS.md#the-discovery) | Learn from our 451KB → 3.5GB disaster | 15 min |
+| [Connection Patterns](./docs/GRAPHITI_INTEGRATION.md#connection-patterns) | Multi-agent setup examples | 10 min |
+| [Emergency Procedures](./docs/TROUBLESHOOTING.md#emergency-procedures) | When things go wrong | 5 min |
+
+### ⚠️ Critical Configuration
+
+If you remember nothing else, remember this:
+```yaml
+NODE_CREATION_BUFFER: 512  # NEVER use default 16384!
+```
+This single setting prevents the catastrophic memory explosion detailed in our [forensics analysis](./docs/MEMORY_FORENSICS.md).
+
 ## Features
 
 - 🚀 **Optimized for M3**: ARM64 native images, no emulation overhead
