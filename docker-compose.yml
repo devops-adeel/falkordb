@@ -17,6 +17,10 @@ services:
       - "docker-volume-backup.archive-post=/bin/sh -c 'echo Backup completed at $(date)'"
     volumes:
       - falkordb_data:/var/lib/falkordb/data  # Named volume for persistence
+    deploy:
+      resources:
+        limits:
+          memory: 3.5GB
     environment:
       # NextAuth configuration for browser UI
       - NEXTAUTH_URL=http://falkordb-browser.local
@@ -29,17 +33,18 @@ services:
       # Optional integration API keys (only needed if using these features)
       - GRAPHITI_API_KEY=${GRAPHITI_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      # Performance tuning for multiple concurrent connections
-      - FALKORDB_ARGS=THREAD_COUNT 8 NODE_CREATION_BUFFER 8192 CACHE_SIZE 50 OMP_THREAD_COUNT 2
-      # Redis memory management
-      - REDIS_ARGS=--maxmemory 4gb --maxmemory-policy allkeys-lru --save 60 1000
+      # Performance tuning optimized to prevent memory explosions from duplicate UUIDs
+      # NODE_CREATION_BUFFER reduced from default 16384 to 512 (32x reduction)
+      - FALKORDB_ARGS=THREAD_COUNT 8 NODE_CREATION_BUFFER 512 QUERY_MEM_CAPACITY 268435456 CACHE_SIZE 50 OMP_THREAD_COUNT 2 EFFECTS_THRESHOLD 100
+      # Redis server configuration (memory limits and persistence)
+      - REDIS_ARGS=--maxmemory 2gb --maxmemory-policy volatile-lru --save 3600 10 --save 300 100
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 5s       # Reasonable timeout for ping command
-      retries: 3        # Standard retry count
-      start_period: 30s # Sufficient time for initialization
+      test: ["CMD", "timeout", "10", "redis-cli", "ping"]
+      interval: 60s
+      timeout: 10s      # Increased timeout for health checks
+      retries: 5        # More tolerance for transient failures
+      start_period: 60s # More time for initialization
 
 volumes:
   falkordb_data:
