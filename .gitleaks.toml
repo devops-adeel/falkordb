@@ -1,0 +1,161 @@
+# Gitleaks configuration for FalkorDB
+# Custom rules for detecting secrets specific to this project
+
+title = "FalkorDB Gitleaks Configuration"
+
+# Extend the base configuration
+[extend]
+useDefault = true
+
+# Custom rules for project-specific secrets
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key (used by Graphiti)"
+regex = '''sk-[a-zA-Z0-9]{20,}'''
+tags = ["secret", "openai", "api-key", "high-severity"]
+keywords = ["sk-", "openai"]
+
+[rules.allowlist]
+description = "Allow OpenAI test keys and placeholders"
+regexes = [
+    '''sk-proj-test''',
+    '''sk-test''',
+    '''YOUR_ACTUAL_OPENAI_KEY''',
+    '''OPENAI_API_KEY'''
+]
+
+[[rules]]
+id = "langfuse-public-key"
+description = "Langfuse Public API Key (used by Graphiti/GTD Coach)"
+regex = '''pk-lf-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+tags = ["secret", "langfuse", "api-key"]
+keywords = ["pk-lf", "langfuse", "public"]
+
+[rules.allowlist]
+description = "Allow test/mock Langfuse public keys"
+regexes = [
+    '''pk-lf-test-[0-9]{8}-[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{12}''',
+    '''PLACEHOLDER_REPLACE_WITH_ACTUAL''',
+    '''YOUR_ACTUAL_PUBLIC_KEY''',
+    '''pk-lf-00689068-a85f-41a1-8e1e-37619595b0ed'''  # Example key from docs
+]
+
+[[rules]]
+id = "langfuse-secret-key"
+description = "Langfuse Secret API Key"
+regex = '''sk-lf-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+tags = ["secret", "langfuse", "api-key", "high-severity"]
+keywords = ["sk-lf", "langfuse", "secret"]
+
+[rules.allowlist]
+description = "Allow test/mock Langfuse secret keys"
+regexes = [
+    '''sk-lf-test-[0-9]{8}-[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{12}''',
+    '''PLACEHOLDER_REPLACE_WITH_ACTUAL''',
+    '''YOUR_ACTUAL_SECRET_KEY''',
+    '''sk-lf-14e07bbb-ee5f-45a1-abd8-b63d21f95bb9'''  # Example key from docs
+]
+
+[[rules]]
+id = "falkordb-credentials"
+description = "FalkorDB/Redis Connection Strings or Passwords"
+regex = '''redis://[^:]+:[^@]+@[^/]+'''
+tags = ["secret", "database", "redis", "falkordb"]
+
+[rules.allowlist]
+description = "Allow example connection strings"
+regexes = [
+    '''redis://default:password@localhost''',
+    '''redis://username:password@host''',
+    '''redis://falkordb:6379'''  # Without credentials
+]
+
+[[rules]]
+id = "falkordb-password"
+description = "FalkorDB Password in Configuration"
+regex = '''FALKORDB_PASSWORD\s*=\s*["']?[^"'\s]+["']?'''
+tags = ["secret", "database", "password", "high-severity"]
+
+[rules.allowlist]
+description = "Allow placeholder passwords"
+regexes = [
+    '''FALKORDB_PASSWORD\s*=\s*["']?(password|changeme|YOUR_PASSWORD|PLACEHOLDER)["']?'''
+]
+
+[[rules]]
+id = "1password-service-token"
+description = "1Password Service Account Token"
+regex = '''OP_SERVICE_ACCOUNT_TOKEN\s*=\s*["']?[A-Za-z0-9\-_]{40,}["']?'''
+tags = ["secret", "1password", "service-account", "high-severity"]
+
+[[rules]]
+id = "1password-vault-reference"
+description = "1Password Vault Item References (allowed pattern)"
+regex = '''op://HomeLab/[a-z0-9]{26}/[a-z\-]+'''
+tags = ["configuration", "1password", "reference"]
+
+[rules.allowlist]
+description = "This is the correct way to reference 1Password items"
+regexes = [
+    '''op://HomeLab/[a-z0-9]{26}/[a-z\-]+'''
+]
+
+[[rules]]
+id = "grafana-api-key"
+description = "Grafana API Key"
+regex = '''(glsa|glc|glsa)_[a-zA-Z0-9]{32,}'''
+tags = ["secret", "grafana", "api-key", "monitoring"]
+
+[[rules]]
+id = "grafana-credentials"
+description = "Grafana Admin Password"
+regex = '''GF_SECURITY_ADMIN_PASSWORD\s*=\s*["']?[^"'\s]+["']?'''
+tags = ["secret", "grafana", "password", "monitoring"]
+
+[rules.allowlist]
+description = "Allow default Grafana passwords"
+regexes = [
+    '''GF_SECURITY_ADMIN_PASSWORD\s*=\s*["']?(admin|changeme|password)["']?'''
+]
+
+[[rules]]
+id = "timing-api-key"
+description = "Timing App API Key (GTD Coach)"
+regex = '''TIMING_API_KEY\s*=\s*["']?[a-zA-Z0-9]{20,}["']?'''
+tags = ["secret", "timing", "api-key"]
+
+# Global allowlist for files that are expected to contain example secrets
+[allowlist]
+description = "Global allowlist"
+paths = [
+    '''\.env\.example''',
+    '''\.env\.sample''',
+    '''\.env\.template''',
+    '''secrets/\.env\.1password''',  # This file only contains references, not actual secrets
+    '''docs/.*\.md''',  # Documentation can contain example secrets
+    '''README\.md''',
+    '''CLAUDE\.md''',  # Development documentation
+    '''tests/fixtures/.*''',  # Test fixtures may contain mock data
+    '''\.gitleaks\.toml'''  # This config file itself
+]
+
+# File patterns to scan
+[scan]
+paths = [
+    "*.py",
+    "*.sh",
+    "*.yml",
+    "*.yaml",
+    "*.json",
+    "*.env*",
+    "*.toml",
+    "Dockerfile*",
+    "docker-compose*",
+    "Makefile"
+]
+
+# Performance settings
+[performance]
+maxTargetMegabytes = 100  # Don't scan files larger than 100MB
+maxFileSizeKB = 500  # Skip individual files larger than 500KB
